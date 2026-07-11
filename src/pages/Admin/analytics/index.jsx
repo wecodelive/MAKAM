@@ -364,6 +364,7 @@ export default function Analytics() {
                     <div
                       className={`h-2 ${barColorClass}`}
                       style={{ width: `${Math.max(widthPercent, 2)}%` }}
+              </div>
                     />
                   </div>
                 </div>
