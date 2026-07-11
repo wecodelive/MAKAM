@@ -68,6 +68,7 @@ const {
 const {
   getSalesDashboard,
   getTopProducts,
+  getMonthlyItemSalesReport,
   getCustomerAnalytics,
 } = require("../controllers/analyticsController.jsx");
 
@@ -177,6 +178,9 @@ router
 router.route("/admin/inventory/:productId").put(requireAdmin, updateInventory);
 router.route("/admin/analytics/sales").get(requireAdmin, getSalesDashboard);
 router.route("/admin/analytics/top-products").get(requireAdmin, getTopProducts);
+router
+  .route("/admin/analytics/monthly-item-sales")
+  .get(requireAdmin, getMonthlyItemSalesReport);
 router
   .route("/admin/analytics/customers")
   .get(requireAdmin, getCustomerAnalytics);

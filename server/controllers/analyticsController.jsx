@@ -229,6 +229,83 @@ exports.getTopProducts = async (req, res) => {
   }
 };
 
+exports.getMonthlyItemSalesReport = async (req, res) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const year = Math.max(Number(req.query.year) || currentYear, 2000);
+    const periodStart = new Date(year, 0, 1);
+    const periodEnd = new Date(year + 1, 0, 1);
+
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          placedAt: {
+            gte: periodStart,
+            lt: periodEnd,
+          },
+        },
+      },
+      select: {
+        productId: true,
+        productNameSnapshot: true,
+        quantity: true,
+        lineTotal: true,
+        order: {
+          select: {
+            placedAt: true,
+          },
+        },
+      },
+    });
+
+    const reportMap = new Map();
+
+    orderItems.forEach((item) => {
+      const orderDate = new Date(item.order.placedAt);
+      const monthIndex = orderDate.getMonth();
+      const monthLabel = orderDate.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+      const productKey =
+        item.productId || item.productNameSnapshot || "unknown";
+      const reportKey = `${monthIndex}:${productKey}`;
+
+      if (!reportMap.has(reportKey)) {
+        reportMap.set(reportKey, {
+          monthIndex,
+          monthLabel,
+          productId: item.productId,
+          productName: item.productNameSnapshot || "Unknown Product",
+          quantity: 0,
+          revenue: 0,
+        });
+      }
+
+      const currentRow = reportMap.get(reportKey);
+      currentRow.quantity += item.quantity || 0;
+      currentRow.revenue += item.lineTotal || 0;
+    });
+
+    const reportRows = Array.from(reportMap.values())
+      .sort(
+        (left, right) =>
+          left.monthIndex - right.monthIndex ||
+          left.productName.localeCompare(right.productName),
+      )
+      .map(({ monthIndex, ...row }) => row);
+
+    res.status(200).json({
+      success: true,
+      year,
+      rows: reportRows,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 exports.getCustomerAnalytics = async (req, res) => {
   try {
     const period = resolvePeriod(req.query.period);

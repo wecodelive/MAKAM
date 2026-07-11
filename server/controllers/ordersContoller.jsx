@@ -1,4 +1,4 @@
-const prisma = require("../prisma/index.jsx");
+﻿const prisma = require("../prisma/index.jsx");
 
 const ORDER_STATUSES = [
   "PENDING",
@@ -17,8 +17,29 @@ const SHIPMENT_STATUSES = [
   "RETURNED",
 ];
 
+const PAYMENT_METHODS = ["CARD", "TRANSFER"];
+const DELIVERY_WINDOW_DAYS = 5;
+
+const resolvePaymentMethod = (rawPaymentMethod) => {
+  const paymentMethod = String(rawPaymentMethod || "CARD")
+    .trim()
+    .toUpperCase();
+  return PAYMENT_METHODS.includes(paymentMethod) ? paymentMethod : "CARD";
+};
+
+const calculateEstimatedDeliveryDate = (placedAt = new Date()) => {
+  const estimatedDeliveryAt = new Date(placedAt);
+  estimatedDeliveryAt.setDate(
+    estimatedDeliveryAt.getDate() + DELIVERY_WINDOW_DAYS,
+  );
+  return estimatedDeliveryAt;
+};
+
 const generateOrderNumber = () =>
   `MKM-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
+
+const generatePaymentReference = (orderNumber) =>
+  `${orderNumber}-PAY-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
 exports.getPublicOrders = async (req, res) => {
   try {
@@ -88,6 +109,8 @@ exports.getPublicOrderById = async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
+        payment: true,
+        shipment: true,
         items: {
           orderBy: { createdAt: "asc" },
         },
@@ -119,7 +142,7 @@ exports.getPublicOrderById = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { customer, shippingAddress, items, notes } = req.body;
+    const { customer, shippingAddress, items, notes, paymentMethod } = req.body;
 
     const email = String(customer?.email || "")
       .trim()
@@ -158,149 +181,181 @@ exports.createOrder = async (req, res) => {
     const uniqueProductIds = [
       ...new Set(normalizedItems.map((item) => item.productId)),
     ];
+    const resolvedPaymentMethod = resolvePaymentMethod(paymentMethod);
 
-    const order = await prisma.$transaction(async (tx) => {
-      const products = await tx.product.findMany({
-        where: { id: { in: uniqueProductIds } },
-        select: {
-          id: true,
-          name: true,
-          sku: true,
-          price: true,
-          stockQuantity: true,
-          images: true,
-        },
-      });
-
-      if (products.length !== uniqueProductIds.length) {
-        throw new Error("One or more products no longer exist");
-      }
-
-      const productsById = new Map(
-        products.map((product) => [product.id, product]),
-      );
-
-      const orderItemsData = normalizedItems.map((item) => {
-        const product = productsById.get(item.productId);
-        if (!product) {
-          throw new Error("Invalid product in cart");
-        }
-
-        if (product.stockQuantity < item.quantity) {
-          throw new Error(`${product.name} does not have enough stock`);
-        }
-
-        const unitPrice = Number(product.price || 0);
-        return {
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice,
-          lineTotal: unitPrice * item.quantity,
-          productNameSnapshot: product.name,
-          skuSnapshot: product.sku || null,
-          imageSnapshot: Array.isArray(product.images)
-            ? product.images[0] || null
-            : null,
-        };
-      });
-
-      const subtotalAmount = orderItemsData.reduce(
-        (sum, item) => sum + item.lineTotal,
-        0,
-      );
-
-      const user = await tx.user.upsert({
-        where: { email },
-        update: {
-          name: fullName,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          phone: phone || null,
-        },
-        create: {
-          email,
-          password: `checkout_${Date.now()}`,
-          name: fullName,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          phone: phone || null,
-          role: "CUSTOMER",
-        },
-      });
-
-      let shippingAddressId = null;
-      if (
-        shippingAddress?.country ||
-        shippingAddress?.address ||
-        shippingAddress?.city
-      ) {
-        const address = await tx.address.create({
-          data: {
-            userId: user.id,
-            firstName: firstName || "Guest",
-            lastName: lastName || "Customer",
-            phone: phone || null,
-            country: String(shippingAddress?.country || "Nigeria"),
-            state: String(shippingAddress?.region || "Lagos"),
-            city: String(shippingAddress?.city || "Lagos"),
-            addressLine1: String(shippingAddress?.address || "Address pending"),
-            postalCode: String(shippingAddress?.postalCode || ""),
+    const order = await prisma.$transaction(
+      async (tx) => {
+        const products = await tx.product.findMany({
+          where: { id: { in: uniqueProductIds } },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            price: true,
+            stockQuantity: true,
+            images: true,
           },
         });
 
-        shippingAddressId = address.id;
-      }
+        if (products.length !== uniqueProductIds.length) {
+          throw new Error("One or more products no longer exist");
+        }
 
-      const totalAmount = subtotalAmount;
+        const productsById = new Map(
+          products.map((product) => [product.id, product]),
+        );
 
-      const createdOrder = await tx.order.create({
-        data: {
-          orderNumber: generateOrderNumber(),
-          userId: user.id,
-          status: "PENDING",
-          paymentStatus: "UNPAID",
-          fulfillmentStatus: "UNFULFILLED",
-          currency: "NGN",
-          subtotalAmount,
-          shippingAmount: 0,
-          taxAmount: 0,
-          discountAmount: 0,
-          totalAmount,
-          customerEmail: email,
-          customerPhone: phone || null,
-          notes: notes?.trim() || null,
-          shippingAddressId,
-          billingAddressId: shippingAddressId,
-          items: {
-            create: orderItemsData,
+        const orderItemsData = normalizedItems.map((item) => {
+          const product = productsById.get(item.productId);
+          if (!product) {
+            throw new Error("Invalid product in cart");
+          }
+
+          if (product.stockQuantity < item.quantity) {
+            throw new Error(`${product.name} does not have enough stock`);
+          }
+
+          const unitPrice = Number(product.price || 0);
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice,
+            lineTotal: unitPrice * item.quantity,
+            productNameSnapshot: product.name,
+            skuSnapshot: product.sku || null,
+            imageSnapshot: Array.isArray(product.images)
+              ? product.images[0] || null
+              : null,
+          };
+        });
+
+        const subtotalAmount = orderItemsData.reduce(
+          (sum, item) => sum + item.lineTotal,
+          0,
+        );
+        const estimatedDeliveryAt = calculateEstimatedDeliveryDate();
+
+        const user = await tx.user.upsert({
+          where: { email },
+          update: {
+            name: fullName,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            phone: phone || null,
           },
-          statusHistory: {
-            create: {
-              toStatus: "PENDING",
-              note: "Order placed from checkout",
-            },
+          create: {
+            email,
+            password: `checkout_${Date.now()}`,
+            name: fullName,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            phone: phone || null,
+            role: "CUSTOMER",
           },
-        },
-        include: {
-          items: true,
-        },
-      });
+        });
 
-      await Promise.all(
-        normalizedItems.map((item) =>
-          tx.product.update({
-            where: { id: item.productId },
+        let shippingAddressId = null;
+        if (
+          shippingAddress?.country ||
+          shippingAddress?.address ||
+          shippingAddress?.city
+        ) {
+          const address = await tx.address.create({
             data: {
-              stockQuantity: {
-                decrement: item.quantity,
+              userId: user.id,
+              firstName: firstName || "Guest",
+              lastName: lastName || "Customer",
+              phone: phone || null,
+              country: String(shippingAddress?.country || "Nigeria"),
+              state: String(shippingAddress?.region || "Lagos"),
+              city: String(shippingAddress?.city || "Lagos"),
+              addressLine1: String(
+                shippingAddress?.address || "Address pending",
+              ),
+              postalCode: String(shippingAddress?.postalCode || ""),
+            },
+          });
+
+          shippingAddressId = address.id;
+        }
+
+        const totalAmount = subtotalAmount;
+        const paymentReference = generatePaymentReference(generateOrderNumber());
+
+        const createdOrder = await tx.order.create({
+          data: {
+            orderNumber: generateOrderNumber(),
+            userId: user.id,
+            status: "PENDING",
+            paymentStatus: "UNPAID",
+            fulfillmentStatus: "UNFULFILLED",
+            currency: "NGN",
+            subtotalAmount,
+            shippingAmount: 0,
+            taxAmount: 0,
+            discountAmount: 0,
+            totalAmount,
+            customerEmail: email,
+            customerPhone: phone || null,
+            notes: notes?.trim() || null,
+            shippingAddressId,
+            billingAddressId: shippingAddressId,
+            items: {
+              create: orderItemsData,
+            },
+            payment: {
+              create: {
+                provider: "MANUAL",
+                providerReference: paymentReference,
+                amount: totalAmount,
+                currency: "NGN",
+                status: "PENDING",
+                metadata: {
+                  method: resolvedPaymentMethod,
+                  channel: "CHECKOUT",
+                },
               },
             },
-          }),
-        ),
-      );
+            shipment: {
+              create: {
+                status: "PENDING",
+                estimatedDeliveryAt,
+              },
+            },
+            statusHistory: {
+              create: {
+                toStatus: "PENDING",
+                note: "Order placed from checkout",
+              },
+            },
+          },
+          include: {
+            items: true,
+            payment: true,
+            shipment: true,
+          },
+        });
 
-      return createdOrder;
-    });
+        await Promise.all(
+          normalizedItems.map((item) =>
+            tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stockQuantity: {
+                  decrement: item.quantity,
+                },
+              },
+            }),
+          ),
+        );
+
+        return createdOrder;
+      },
+      {
+        maxWait: 10000,
+        timeout: 15000,
+      },
+    );
 
     res.status(201).json({ success: true, order });
   } catch (error) {

@@ -1,5 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowRight, CalendarDays, CreditCard, Package, Truck } from "lucide-react";
 import OrderCard from "./components/orderCard";
 import {
   getCustomerOrderDetails,
@@ -33,6 +34,19 @@ export default function Orders() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
+
+  const formatDate = (value) => {
+    if (!value) {
+      return "Pending";
+    }
+
+    return new Intl.DateTimeFormat("en-NG", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(value));
+  };
 
   React.useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -114,57 +128,186 @@ export default function Orders() {
   );
 
   if (orderId) {
+    const paymentMethod = String(orderDetails?.payment?.metadata?.method || "CARD")
+      .toUpperCase()
+      .replace(/_/g, " ");
+    const estimatedDeliveryDate =
+      orderDetails?.shipment?.estimatedDeliveryAt ||
+      orderDetails?.deliveredAt ||
+      orderDetails?.placedAt;
+
     return (
-      <div className="px-4 py-4 flex flex-col gap-4">
-        <button
-          type="button"
-          onClick={() => navigate("/orders")}
-          className="w-fit text-[12px] underline"
-        >
-          Back to orders
-        </button>
+      <div className="min-h-screen bg-[linear-gradient(180deg,#FBFBF8_0%,#FFFFFF_45%,#F7F5F0_100%)] px-4 py-6 lg:px-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/orders")}
+            className="w-fit text-[12px] font-medium text-[#0000008C] transition-opacity hover:opacity-70"
+          >
+            Back to orders
+          </button>
 
-        {loadingOrder ? (
-          <p className="text-[13px] text-[#0000008C]">Loading order...</p>
-        ) : !orderDetails ? (
-          <p className="text-[13px] text-[#0000008C]">Order not found.</p>
-        ) : (
-          <>
-            <h1 className="font-extrabold text-[20px] leading-10 tracking-[2px] uppercase">
-              Order Confirmed
-            </h1>
-
-            <div className="text-[13px] flex flex-col gap-1">
-              <p>
-                Order No: <strong>{orderDetails.orderNumber}</strong>
-              </p>
-              <p>Status: {orderDetails.status}</p>
-              <p>Email: {orderDetails.customerEmail}</p>
-              <p>Total: {formatCurrency(orderDetails.totalAmount)}</p>
-            </div>
-
-            <div className="flex flex-col gap-y-2 mt-2">
-              {(orderDetails.items || []).map((item) => (
-                <article
-                  key={item.id}
-                  className="border border-[#DFDFDF] p-3 flex justify-between items-center"
-                >
+          {loadingOrder ? (
+            <p className="text-[13px] text-[#0000008C]">Loading order...</p>
+          ) : !orderDetails ? (
+            <p className="text-[13px] text-[#0000008C]">Order not found.</p>
+          ) : (
+            <section className="overflow-hidden rounded-[28px] border border-[#00000012] bg-white shadow-[0_10px_40px_rgba(15,15,15,0.04)]">
+              <div className="bg-[#111111] px-5 py-5 text-white lg:px-6 lg:py-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-[12px] font-medium">
-                      {item.productNameSnapshot}
+                    <p className="text-[11px] uppercase tracking-[1.5px] text-white/60">
+                      Receipt
                     </p>
-                    <p className="text-[11px] text-[#0000008C]">
-                      Qty: {item.quantity} • {item.skuSnapshot || "SKU not set"}
+                    <h1 className="mt-2 text-[24px] font-black leading-tight tracking-[2px] uppercase lg:text-[30px]">
+                      Order confirmed
+                    </h1>
+                  </div>
+
+                  <div className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[1px] text-white">
+                    {orderDetails.status}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:p-6">
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#00000012] bg-[#00000003] p-4">
+                      <div className="flex items-center gap-2 text-[#0000008C]">
+                        <Package size={16} />
+                        <span className="text-[11px] uppercase tracking-[1px]">
+                          Order number
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[14px] font-bold text-[#111111]">
+                        {orderDetails.orderNumber}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00000012] bg-[#00000003] p-4">
+                      <div className="flex items-center gap-2 text-[#0000008C]">
+                        <CalendarDays size={16} />
+                        <span className="text-[11px] uppercase tracking-[1px]">
+                          Delivery date
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[14px] font-bold text-[#111111]">
+                        {formatDate(estimatedDeliveryDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#00000012] bg-[#00000003] p-4">
+                      <div className="flex items-center gap-2 text-[#0000008C]">
+                        <CreditCard size={16} />
+                        <span className="text-[11px] uppercase tracking-[1px]">
+                          Payment type
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[14px] font-bold text-[#111111]">
+                        {paymentMethod}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00000012] bg-[#00000003] p-4">
+                      <div className="flex items-center gap-2 text-[#0000008C]">
+                        <Truck size={16} />
+                        <span className="text-[11px] uppercase tracking-[1px]">
+                          Delivery status
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[14px] font-bold text-[#111111]">
+                        {orderDetails.shipment?.status || "PENDING"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#00000012] bg-[#111111] px-4 py-4 text-white">
+                    <p className="text-[11px] uppercase tracking-[1.5px] text-white/60">
+                      Order summary
+                    </p>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-[12px] text-white/70">Total paid</span>
+                      <strong className="text-[18px]">
+                        {formatCurrency(orderDetails.totalAmount)}
+                      </strong>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-6 text-white/75">
+                      Keep this receipt for your records. The items ordered and your expected
+                      delivery date are shown below.
                     </p>
                   </div>
-                  <p className="text-[12px] font-medium">
-                    {formatCurrency(item.lineTotal)}
+
+                  <div className="rounded-2xl border border-[#00000012] p-4">
+                    <h2 className="text-[13px] font-semibold uppercase tracking-[1px] text-[#111111]">
+                      Items ordered
+                    </h2>
+                    <div className="mt-3 flex flex-col gap-y-2">
+                      {(orderDetails.items || []).map((item) => (
+                        <article
+                          key={item.id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-[#00000010] bg-[#00000003] p-3"
+                        >
+                          <div>
+                            <p className="text-[12px] font-semibold text-[#111111]">
+                              {item.productNameSnapshot}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[#0000008C]">
+                              Qty: {item.quantity} - {item.skuSnapshot || "SKU not set"}
+                            </p>
+                          </div>
+                          <p className="text-[12px] font-semibold text-[#111111]">
+                            {formatCurrency(item.lineTotal)}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <aside className="rounded-2xl border border-[#00000012] bg-[#00000003] p-4 lg:sticky lg:top-6 lg:self-start">
+                  <p className="text-[11px] font-semibold uppercase tracking-[1.5px] text-[#0000008C]">
+                    Next steps
                   </p>
-                </article>
-              ))}
-            </div>
-          </>
-        )}
+
+                  <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+                    <p className="text-[12px] font-semibold text-[#111111]">Delivery window</p>
+                    <p className="mt-1 text-[12px] leading-6 text-[#0000008C]">
+                      Your order is expected by {formatDate(estimatedDeliveryDate)}.
+                    </p>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+                    <p className="text-[12px] font-semibold text-[#111111]">Keep this receipt</p>
+                    <p className="mt-1 text-[12px] leading-6 text-[#0000008C]">
+                      Use the order number if you need support or want to track this order later.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/orders")}
+                      className="inline-flex h-11 items-center justify-between rounded-2xl bg-[#111111] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
+                    >
+                      View orders
+                      <ArrowRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/products")}
+                      className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#00000014] bg-white px-4 text-[13px] font-medium text-[#111111] transition-opacity hover:opacity-80"
+                    >
+                      Continue shopping
+                    </button>
+                  </div>
+                </aside>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     );
   }
@@ -182,19 +325,17 @@ export default function Orders() {
           <p className="text-[13px] text-[#0000008C]">No orders yet.</p>
         ) : (
           <>
-            <div className=" flex flex-col gap-y-2 my-2">
-              {mappedOrders.map((order) => {
-                return (
-                  <button
-                    key={order.id}
-                    type="button"
-                    className="text-left"
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                  >
-                    <OrderCard order={order} />
-                  </button>
-                );
-              })}
+            <div className="my-2 flex flex-col gap-y-2">
+              {mappedOrders.map((order) => (
+                <button
+                  key={order.id}
+                  type="button"
+                  className="text-left"
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                >
+                  <OrderCard order={order} />
+                </button>
+              ))}
             </div>
 
             <p className="text-[12px] text-[#0000008C]">

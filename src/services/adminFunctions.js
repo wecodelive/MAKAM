@@ -513,6 +513,24 @@ export const adminGetTopProducts = async (limit = 10, period = "monthly") => {
 };
 
 /**
+ * Get monthly item sales report
+ * @param {Object} filters - Year filter
+ * @returns {Promise<Object>} Monthly item sales rows
+ */
+export const adminGetMonthlyItemSalesReport = async (filters = {}) => {
+    try {
+        const queryString = new URLSearchParams(filters).toString();
+        const response = await fetch(
+            `/api/admin/analytics/monthly-item-sales${queryString ? `?${queryString}` : ""}`
+        );
+        return response.json();
+    } catch (error) {
+        console.error("Error fetching monthly item sales report:", error);
+        throw error;
+    }
+};
+
+/**
  * Get customer analytics
  * @param {Object} filters - Analytics filters
  * @returns {Promise<Object>} Customer insights
