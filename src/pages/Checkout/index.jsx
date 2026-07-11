@@ -190,10 +190,7 @@ const Checkout = () => {
         </div>
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-          <form
-            className="flex flex-col gap-6"
-            onSubmit={handleSubmit}
-          >
+          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <fieldset className="rounded-3xl border border-[#00000012] bg-white p-5 shadow-[0_10px_40px_rgba(15,15,15,0.04)] lg:p-6">
               <legend className="px-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-[#0000008C]">
                 Contact info
@@ -366,8 +363,8 @@ const Checkout = () => {
               </div>
 
               <p className="mt-3 text-[11px] leading-5 text-[#0000008C]">
-                Expected delivery: {estimatedDeliveryDate}. Orders remain pending
-                until payment is confirmed.
+                Expected delivery: {estimatedDeliveryDate}. Orders remain
+                pending until payment is confirmed.
               </p>
             </fieldset>
 

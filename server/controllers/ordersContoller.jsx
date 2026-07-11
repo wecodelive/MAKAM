@@ -280,7 +280,9 @@ exports.createOrder = async (req, res) => {
         }
 
         const totalAmount = subtotalAmount;
-        const paymentReference = generatePaymentReference(generateOrderNumber());
+        const paymentReference = generatePaymentReference(
+          generateOrderNumber(),
+        );
 
         const createdOrder = await tx.order.create({
           data: {

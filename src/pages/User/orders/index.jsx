@@ -1,6 +1,12 @@
 ﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, CalendarDays, CreditCard, Package, Truck } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CreditCard,
+  Package,
+  Truck,
+} from "lucide-react";
 import OrderCard from "./components/orderCard";
 import {
   getCustomerOrderDetails,
@@ -128,7 +134,9 @@ export default function Orders() {
   );
 
   if (orderId) {
-    const paymentMethod = String(orderDetails?.payment?.metadata?.method || "CARD")
+    const paymentMethod = String(
+      orderDetails?.payment?.metadata?.method || "CARD",
+    )
       .toUpperCase()
       .replace(/_/g, " ");
     const estimatedDeliveryDate =
@@ -229,14 +237,16 @@ export default function Orders() {
                       Order summary
                     </p>
                     <div className="mt-3 flex items-center justify-between gap-3">
-                      <span className="text-[12px] text-white/70">Total paid</span>
+                      <span className="text-[12px] text-white/70">
+                        Total paid
+                      </span>
                       <strong className="text-[18px]">
                         {formatCurrency(orderDetails.totalAmount)}
                       </strong>
                     </div>
                     <p className="mt-2 text-[12px] leading-6 text-white/75">
-                      Keep this receipt for your records. The items ordered and your expected
-                      delivery date are shown below.
+                      Keep this receipt for your records. The items ordered and
+                      your expected delivery date are shown below.
                     </p>
                   </div>
 
@@ -255,7 +265,8 @@ export default function Orders() {
                               {item.productNameSnapshot}
                             </p>
                             <p className="mt-1 text-[11px] text-[#0000008C]">
-                              Qty: {item.quantity} - {item.skuSnapshot || "SKU not set"}
+                              Qty: {item.quantity} -{" "}
+                              {item.skuSnapshot || "SKU not set"}
                             </p>
                           </div>
                           <p className="text-[12px] font-semibold text-[#111111]">
@@ -273,16 +284,22 @@ export default function Orders() {
                   </p>
 
                   <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-                    <p className="text-[12px] font-semibold text-[#111111]">Delivery window</p>
+                    <p className="text-[12px] font-semibold text-[#111111]">
+                      Delivery window
+                    </p>
                     <p className="mt-1 text-[12px] leading-6 text-[#0000008C]">
-                      Your order is expected by {formatDate(estimatedDeliveryDate)}.
+                      Your order is expected by{" "}
+                      {formatDate(estimatedDeliveryDate)}.
                     </p>
                   </div>
 
                   <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-                    <p className="text-[12px] font-semibold text-[#111111]">Keep this receipt</p>
+                    <p className="text-[12px] font-semibold text-[#111111]">
+                      Keep this receipt
+                    </p>
                     <p className="mt-1 text-[12px] leading-6 text-[#0000008C]">
-                      Use the order number if you need support or want to track this order later.
+                      Use the order number if you need support or want to track
+                      this order later.
                     </p>
                   </div>
 
